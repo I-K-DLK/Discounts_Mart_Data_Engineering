@@ -5,8 +5,7 @@
 
 -- DROP FUNCTION dcs.f_load_delta_partition(text, text, text, timestamp) 
 
-CREATE OR REPLACE FUNCTION dcs.f_load_delta_partition(p_table text, p_ext_table text, 
-														 p_partition_key text, p_date timestamp)
+CREATE OR REPLACE FUNCTION dcs.f_load_delta_partition(p_table text, p_ext_table text, p_partition_key text, p_date timestamp)
 														  
 	RETURNS int4
 	LANGUAGE plpgsql
