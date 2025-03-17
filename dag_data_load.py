@@ -7,12 +7,12 @@ from airflow.utils.task_group import TaskGroup
 
 # Данные для подключения
   
-DB_CONN = "gp_conn_std9_37"
+DB_CONN = "gp_conn"
 
-DB_SCHEMA = 'std937'
+DB_SCHEMA = 'dcs'
 
- 
-# Загрузка данных через Delta partition 
+
+# Загрузка данных через Delta partition  
   
 CURRENT_YEAR = datetime.now().year
 
@@ -24,36 +24,33 @@ DB_PROC_DELTA_LOAD = 'f_load_delta_partition'
 
 DB_PROC_FULL_LOAD = 'f_full_load'
  
-DELTA_TABLES = ['std937.bills_head', 'std937.bills_item', 'std937.traffic']
+DELTA_TABLES = ['dcs.bills_head', 'dcs.bills_item', 'dcs.traffic', 'dcs.coupons']
  
-PARTITION_KEYS = {'std937.bills_head':'calday', 'std937.bills_item':'calday', 'std937.traffic':'date'}
+PARTITION_KEYS = {'dcs.bills_head':'calday', 'dcs.coupons':'calday', 'dcs.bills_item':'calday', 'dcs.traffic':'date'}
 
 DELTA_PARTITION_QUERY = f"select {DB_SCHEMA}.{DB_PROC_DELTA_LOAD}(%(table)s,%(external_table)s,%(partition_key)s,%(start_date)s);"
 
 
 # Загрузка данных через Full load 
  
-
 DB_PROC_FULL_LOAD = 'f_full_load'
  
- 
-FULL_LOAD_TABLES = ['std937.coupons','std937.promo_types','std937.promos','std937.stores']
+FULL_LOAD_TABLES = ['dcs.promo_types','dcs.promos','dcs.stores']
 
 FULL_LOAD_QUERY = f"select {DB_SCHEMA}.{DB_PROC_FULL_LOAD}(%(table_name)s);"
- 
  
 # Default args
 
 default_args = {
     'depends_on_past': False,
-    'owner': 'std_937',
+    'owner': 'user',
     'start_date': datetime(2025,1,1),
     'retries': 1,
-    'retry_delay': timedelta(minutes=1)
+    'retry_delay': timedelta(minutes=2)
 }
 
 with DAG(
-    "std937_f_sales_traffic_data_load_dag",
+    "f_sales_traffic_data_load_dag",
     max_active_runs=3,
     schedule_interval= '50 23 * * *',
     default_args=default_args,
@@ -61,9 +58,7 @@ with DAG(
 ) as dag:
     
     task_start = DummyOperator(task_id="start")
-    
-    
-                                    
+                             
     with TaskGroup("delta_load") as delta_load:
         for table in DELTA_TABLES:
             task = PostgresOperator(task_id=f"data_delta_load_{table}",
