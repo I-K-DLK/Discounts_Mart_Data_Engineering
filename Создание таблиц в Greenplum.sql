@@ -1,28 +1,26 @@
--- Создадим рабочую схему
- 
-CREATE schema std937;
+  
+-- Создадим рабочую схему discounts (dcs)
+
+CREATE schema ds;
 
 -- Создадим таблицы из внешних источников
 
---  bills_head, bills_item из БД PostgreSQL
+--  bills_head, bills_item (таблицы с данными из чеков) из загрузим из БД PostgreSQL через pxf
  
-DROP EXTERNAL TABLE IF EXISTS bills_head_ext;
+DROP EXTERNAL TABLE IF EXISTS dcs.bills_head_ext;
 
-CREATE READABLE EXTERNAL TABLE bills_head_ext (
+CREATE READABLE EXTERNAL TABLE dcs.bills_head_ext (
 	billnum bigint,
 	plant text,
 	calday date)
 
-LOCATION ('pxf://gp.bills_head?PROFILE=JDBC&JDBC_DRIVER=org.postgresql.Driver&DB_URL=jdbc:postgresql://192.168.214.212:5432/postgres&USER=intern&PASS=intern')
+LOCATION ('pxf://gp.bills_head?PROFILE=JDBC&JDBC_DRIVER=org.postgresql.Driver&DB_URL=jdbc:postgresql://192.168.214.212:5432/postgres&USER=user&PASS=pass')
 ON ALL 
 FORMAT 'CUSTOM' (FORMATTER='pxfwritable_import');
- 
- 
+  
+DROP EXTERNAL TABLE IF EXISTS dcs.bills_item_ext; 
 
-
-DROP EXTERNAL TABLE IF EXISTS bills_item_ext; 
-
-CREATE READABLE EXTERNAL TABLE bills_item_ext (
+CREATE READABLE EXTERNAL TABLE dcs.bills_item_ext (
 	billnum bigint,
 	billitem bigint,
 	material bigint,
@@ -32,16 +30,16 @@ CREATE READABLE EXTERNAL TABLE bills_item_ext (
 	rpa_sat numeric(17, 2),
 	calday date)
 
-LOCATION ('pxf://gp.bills_item?PROFILE=JDBC&JDBC_DRIVER=org.postgresql.Driver&DB_URL=jdbc:postgresql://192.168.214.212:5432/postgres&USER=intern&PASS=intern')
+LOCATION ('pxf://gp.bills_item?PROFILE=JDBC&JDBC_DRIVER=org.postgresql.Driver&DB_URL=jdbc:postgresql://192.168.214.212:5432/postgres&USER=user&PASS=pass')
 ON ALL 
 FORMAT 'CUSTOM' (FORMATTER='pxfwritable_import');
 
 
--- traffic
+-- traffic (таблица посещаемости магазинов сети)
 
-DROP EXTERNAL TABLE IF EXISTS traffic_ext;
+DROP EXTERNAL TABLE IF EXISTS dcs.traffic_ext;
 
-CREATE READABLE EXTERNAL TABLE traffic_ext (
+CREATE READABLE EXTERNAL TABLE dcs.traffic_ext (
 	plant text,
 	date text,
 	time text,
@@ -49,11 +47,11 @@ CREATE READABLE EXTERNAL TABLE traffic_ext (
 	quantity int
 	)
 
-LOCATION ('pxf://gp.traffic?PROFILE=JDBC&JDBC_DRIVER=org.postgresql.Driver&DB_URL=jdbc:postgresql://192.168.214.212:5432/postgres&USER=intern&PASS=intern')
+LOCATION ('pxf://gp.traffic?PROFILE=JDBC&JDBC_DRIVER=org.postgresql.Driver&DB_URL=jdbc:postgresql://192.168.214.212:5432/postgres&USER=user&PASS=pass')
 ON ALL 
 FORMAT 'CUSTOM' (FORMATTER='pxfwritable_import');
 
-SELECT * FROM std937.bills_head_ext LIMIT 10;
+SELECT * FROM dcs.bills_head_ext LIMIT 10;
 
 /*
 billnum  |billitem|material  |qty|netval |tax   |rpa_sat|calday    |
@@ -70,7 +68,7 @@ billnum  |billitem|material  |qty|netval |tax   |rpa_sat|calday    |
 901154502|       2|1000041426|  1|   1.82|  0.18|   2.00|2021-02-21|
 */
 
-SELECT * FROM std937.bills_item_ext LIMIT 10;
+SELECT * FROM dcs.bills_item_ext LIMIT 10;
 /*
 billnum  |billitem|material  |qty|netval |tax   |rpa_sat|calday    |
 ---------+--------+----------+---+-------+------+-------+----------+
@@ -86,7 +84,7 @@ billnum  |billitem|material  |qty|netval |tax   |rpa_sat|calday    |
 901154502|       2|1000041426|  1|   1.82|  0.18|   2.00|2021-02-21|
 */
 
-SELECT * FROM std937.traffic_ext LIMIT 10;
+SELECT * FROM dcs.traffic_ext LIMIT 10;
 
 /*
 plant|date      |time  |frame_id  |quantity|
@@ -103,31 +101,33 @@ M001 |01.01.2021|160000|1245776698|       1|
 M001 |01.01.2021|170000|1245776691|       1|
 */
 
+-- Данные из других источников загрузим по протоколу gpfdist из локальных файлов CSV
+
+-- Скидочные купоны
+DROP EXTERNAL TABLE IF EXISTS dcs.coupons_ext;
  
-DROP EXTERNAL TABLE IF EXISTS coupons_ext;
- 
-CREATE EXTERNAL TABLE coupons_ext(plant	varchar, calday date, coupon_num varchar,  coupon_promo text, material bigint, billnum bigint
+CREATE EXTERNAL TABLE dcs.coupons_ext(plant varchar, calday date, coupon_num varchar,  coupon_promo text, material bigint, billnum bigint
 )
 LOCATION('gpfdist://172.16.128.98:8080/coupons.csv')
 FORMAT 'CSV'(HEADER DELIMITER ',' NULL '');
 
- 
-DROP EXTERNAL TABLE IF EXISTS promo_types_ext;
+ -- Типы промо-акций
+DROP EXTERNAL TABLE IF EXISTS dcs.promo_types_ext;
 
-CREATE EXTERNAL TABLE promo_types_ext(promo_type int, txt text
+CREATE EXTERNAL TABLE dcs.promo_types_ext(promo_type int, txt text
 )
 LOCATION('gpfdist://172.16.128.98:8080/promo_types.csv')
 FORMAT 'CSV'(HEADER DELIMITER ',' NULL '');
 
- 
-DROP EXTERNAL TABLE IF EXISTS promos_ext;
+ -- Промо-акции 
+DROP EXTERNAL TABLE IF EXISTS dcs.promos_ext;
 
-CREATE EXTERNAL TABLE promos_ext(id text, title text, promo_type int, material bigint, discount int
+CREATE EXTERNAL TABLE dcs.promos_ext(id text, title text, promo_type int, material bigint, discount int
 )
 LOCATION('gpfdist://172.16.128.98:8080/promos.csv')
 FORMAT 'CSV'(HEADER DELIMITER ',' NULL '');
 
-
+ -- Магазины
 DROP EXTERNAL TABLE IF EXISTS stores_ext;
 
 CREATE EXTERNAL TABLE stores_ext(plant varchar, txt text
@@ -135,7 +135,7 @@ CREATE EXTERNAL TABLE stores_ext(plant varchar, txt text
 LOCATION('gpfdist://172.16.128.98:8080/stores.csv')
 FORMAT 'CSV'(HEADER DELIMITER ',' NULL '');
 
-SELECT * FROM std937.stores_ext;
+SELECT * FROM dcs.stores_ext;
 
 /*
 plant|txt        |
@@ -157,7 +157,7 @@ M014 |Магазин №14|
 M015 |Магазин №15|
 */
 
-SELECT * FROM std937.promo_types_ext;
+SELECT * FROM dcs.promo_types_ext;
 /*
 promo_type|txt                             |
 ----------+--------------------------------+
@@ -181,66 +181,66 @@ M003 |2021-01-04|A000009   |005056A75DDC1EEAA9BC2CA7D9AA66EE|7000009745|90054185
 M012 |2021-01-04|A000010   |3638616237621EEBA4EF73792BE10EAE|     32204|900658343|
 */
 
--- Создадим локальные таблицы в Greenplum на основе внешних таблиц. Выберем распределение и партицирование.
+/*
+Создадим локальные таблицы в Greenplum на основе внешних таблиц. Выберем распределение и партицирование.
+Для OLAP нагрузки везде используем тип appendoptimized и колоночную ориентацию.
+Степень сжатия выбираем 1 для оптимального быстродействия.
+*/
+	
+-- Создадим справочники - реплицируем их на все сегменты. 
 
--- Создадим справочники
+ 
+DROP TABLE IF EXISTS dcs.promo_types;
 
-DROP TABLE IF EXISTS std937.promo_types;
-
-CREATE TABLE std937.promo_types (
+CREATE TABLE dcs.promo_types (
 	promo_type int,
 	txt text
 )
 WITH (appendoptimized=true, orientation=column, compresslevel=1, compresstype=zstd)
 DISTRIBUTED REPLICATED;
 
-DROP TABLE IF EXISTS std937.promos;
+DROP TABLE IF EXISTS dcs.promos;
 
-CREATE TABLE std937.promos (
+CREATE TABLE dcs.promos (
 	id text,
 	title text,
 	promo_type int,
 	material bigint,
-	discount int
-	
+	discount int	
 )
 WITH (appendoptimized=true, orientation=column, compresslevel=1, compresstype=zstd)
 DISTRIBUTED REPLICATED;
  
 
-DROP TABLE IF EXISTS std937.stores;
+DROP TABLE IF EXISTS dcs.stores;
 
-CREATE TABLE std937.stores (
+CREATE TABLE dcs.stores (
 	plant varchar,
 	txt text
-	
 )
 WITH (appendoptimized=true, orientation=column, compresslevel=1, compresstype=zstd)
 DISTRIBUTED REPLICATED;
 
 
-
-
-
--- Создадим таблицы фактов
+-- Создадим таблицы фактов - партиционирование установим по колонкам с типом данных - дата, помесячно
 
 select count(*) from bills_head_ext -- 9967126 записей
 
  
--- DROP TABLE std937.traffic;
+-- DROP TABLE dcs.traffic;
 
-CREATE TABLE std937.traffic (plant text, date date, time text, frame_id text, quantity int
+CREATE TABLE dcs.traffic (plant text, date date, time text, frame_id text, quantity int
 )
 WITH (appendoptimized=true, orientation=column, compresslevel=1, compresstype=zstd)
 DISTRIBUTED RANDOMLY
 PARTITION BY RANGE(date)
 (
-PARTITION ym START ('2020-01-01'::date) END ('2026-01-01'::date) EVERY ( INTERVAL '1 month'),
+PARTITION ym START ('2020-01-01') END ('2026-01-01') EVERY ( INTERVAL '1 month'),
 DEFAULT PARTITION other
 );
--- DROP TABLE std937.bills_head;
+-- DROP TABLE dcs.bills_head;
 
-CREATE TABLE std937.bills_head (LIKE bills_head_ext
+CREATE TABLE dcs.bills_head (LIKE bills_head_ext
 )
 WITH (appendoptimized=true, orientation=column, compresslevel=1, compresstype=zstd)
 DISTRIBUTED BY (billnum)
@@ -251,9 +251,9 @@ DEFAULT PARTITION other
 );
 
 
--- DROP TABLE std937.bills_item;
+-- DROP TABLE dcs.bills_item;
 
-CREATE TABLE std937.bills_item (LIKE bills_item_ext
+CREATE TABLE dcs.bills_item (LIKE bills_item_ext
 )
 WITH (appendoptimized=true, orientation=column, compresslevel=1, compresstype=zstd)
 DISTRIBUTED RANDOMLY
@@ -263,9 +263,9 @@ PARTITION ym START ('2020-01-01') END ('2026-01-01') EVERY ( INTERVAL '1 month')
 DEFAULT PARTITION other
 );
 
--- DROP TABLE std937.coupons;
+-- DROP TABLE dcs.coupons;
 
-CREATE TABLE std937.coupons (
+CREATE TABLE dcs.coupons (
 	plant varchar,
 	calday date,
 	coupon_num varchar,
@@ -281,43 +281,4 @@ PARTITION BY RANGE(calday)
 PARTITION ym START ('2020-01-01') END ('2026-01-01') EVERY ( INTERVAL '1 month'),
 DEFAULT PARTITION other
 );
-
-SELECT COUNT(DISTINCT coupon_num) FROM std937.coupons GROUP BY  coupon_num
-
- -- Партиции созданы таким образом, что увеличение количества данных будет происходить до настоящего времени (2020-2025гг)
-
- 
-
-DROP TABLE std937.bills_head;
-
-CREATE TABLE std937.bills_head (LIKE bills_head_ext
-)
-WITH (appendoptimized=true, orientation=column, compresslevel=1, compresstype=zstd)
-DISTRIBUTED BY (billnum)
-PARTITION BY RANGE(calday)
-(
-PARTITION ym_2020 START ('2020-01-01'::date) END ('2021-01-01'::date) EVERY ('1 mon'::interval),
-PARTITION ym_2021 START ('2021-01-01'::date) END ('2022-01-01'::date) EVERY ('1 mon'::interval),
-PARTITION ym_2022 START ('2022-01-01'::date) END ('2023-01-01'::date) EVERY ('1 mon'::interval),
-PARTITION ym_2023 START ('2023-01-01'::date) END ('2024-01-01'::date) EVERY ('1 mon'::interval),
-PARTITION ym_2024 START ('2024-01-01'::date) END ('2025-01-01'::date) EVERY ('1 mon'::interval),
-PARTITION ym_2025 START ('2025-01-01'::date) END ('2026-01-01'::date) EVERY ('1 mon'::interval)
-);
-
-
--- не создаем в таблице дефолтную таблицу , будем просто добавлять партиции к нужному времени например
-
-ALTER TABLE std937.bills_head ADD PARTITION ym_2026_1 START ('2026-01-01'::date) INCLUSIVE END ('2027-01-01'::date) EXCLUSIVE;
-
-ANALYZE std937.bills_head
-
-INSERT INTO std937.bills_head values('2345643224','Магазин-1','2026-01-10')
-
-SELECT * FROM std937.bills_head WHERE plant = 'Магазин-1'
-
-select * from pg_partitions  where schemaname = 'std937';
-
-
- 
-
-
+  
