@@ -8,12 +8,14 @@ from datetime import datetime, timedelta, date
 
 # Данные для подключения
 
-DB_CONN = "gp_conn_std9_37"
+DB_CONN = "gp_conn"
  
-DB_SCHEMA = 'std937'
+DB_SCHEMA = 'dcs'
 
 # В рамках работы на тестовых данных получим список дат за которые 
 # будут строиться витрины данных и грузиться в обьединенную таблицу
+# После отработки на тестовых данных, загрузка витрины будет  
+# происходить ежедневно за текущий день
  
 START_DATE = date(2021,1,1)
 
@@ -31,16 +33,16 @@ DAILY_MART_LOAD = f"select {DB_SCHEMA}.{DB_PROC_MART_LOAD}(%(current_day)s);"
 
 default_args = {
     'depends_on_past': False,
-    'owner': 'std_937',
+    'owner': 'user',
     'start_date': datetime(2025,1,1),
     'retries': 2,
-    'retry_delay': timedelta(minutes=1)
+    'retry_delay': timedelta(minutes=2)
 }
 
 with DAG(
-    "std937_sales_traffic_mart_load_dag",
-    max_active_runs=3,
-    schedule_interval='10 19 * * *',
+    "sales_traffic_mart_load_dag",
+    max_active_runs=2,
+    schedule_interval='55 23 * * *',
     default_args=default_args,
     catchup=False,
 ) as dag:
