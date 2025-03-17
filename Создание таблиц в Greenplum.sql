@@ -1,7 +1,7 @@
   
 -- Создадим рабочую схему discounts (dcs)
 
-CREATE schema ds;
+CREATE schema dcs;
 
 -- Создадим таблицы из внешних источников
 
