@@ -242,16 +242,14 @@ v_sql =  'INSERT INTO '||v_gp_table_name||
 		FROM dcs.bills_item bi 
 			JOIN dcs.bills_head bh ON bh.billnum = bi.billnum
 			LEFT JOIN dcs.stores s ON bh.plant = s.plant	 
-		WHERE bh.calday >= '''||v_start_date||'''
-			AND bh.calday <= '''||v_start_date||'''
+		WHERE bh.calday = '''||v_start_date||'''
 		), 
 				
 		traffic_agg AS (
 				
 			SELECT t.plant, SUM(t.quantity)::decimal AS traffic
 			FROM dcs.traffic t 
-			WHERE t."date" >= '''||v_start_date||'''
-					AND t."date" <= '''||v_start_date||'''
+			WHERE t."date" = '''||v_start_date||'''
 			GROUP BY t.plant 
 		),  
 				 
@@ -351,7 +349,7 @@ c полями распределения идентичными полям, и�
 -----  Напишим функцию, создающую витрину данных с помощью временных таблиц вместо CTE
 
 
-CREATE OR REPLACE FUNCTION dcs.f_sales_traffic_mart(p_start_date timestamp, p_end_date timestamp)
+CREATE OR REPLACE FUNCTION dcs.f_sales_traffic_mart(p_start_date timestamp)
 	RETURNS varchar
 	LANGUAGE plpgsql
 	VOLATILE
@@ -363,7 +361,6 @@ AS $$
 	 
 DECLARE
 v_start_date timestamp;
-v_end_date timestamp;
 v_gp_mart_name varchar;
 v_ch_mart_name varchar;
 v_traffic_agg_temp varchar;
@@ -378,7 +375,6 @@ v_field text;
 
 BEGIN
 v_start_date = p_start_date;
-v_end_date = p_end_date;
 v_gp_mart_name := 'dcs.gp_sales_traffic_mart_daily';
 v_ch_mart_name := 'dcs.ch_sales_traffic_mart_daily';
 v_traffic_agg_temp := 'traffic_agg_temp';
@@ -429,8 +425,7 @@ AS (
 	FROM dcs.bills_item bi 
 		LEFT JOIN dcs.bills_head bh ON bh.billnum = bi.billnum
 		LEFT JOIN dcs.stores s ON bh.plant = s.plant	 
-	WHERE bh.calday >= '''||v_start_date||'''
-		AND bh.calday <= '''||v_end_date||'''
+	WHERE bh.calday = '''||v_start_date||'''
 	) 
 	DISTRIBUTED BY(billnum, material);';
 	 	
@@ -506,8 +501,7 @@ v_sql = 'CREATE TEMP TABLE '||v_traffic_agg_temp||'
 	AS (
 		SELECT t.plant, SUM(t.quantity)::decimal AS traffic
 		FROM dcs.traffic t 
-		WHERE t.date >= '''||v_start_date||'''
-			AND t.date <= '''||v_end_date||'''
+		WHERE t.date = '''||v_start_date||'''
 		GROUP BY t.plant 
 	) 
 	DISTRIBUTED BY(plant);';
@@ -550,8 +544,6 @@ EXECUTE v_sql;
 	
 RAISE NOTICE 'CLICKHOUSE TABLE IS CREATED: %','DONE';
 		
-		 
-
 v_sql =  'INSERT INTO '||v_ch_table_name||' SELECT * FROM '||v_gp_table_name||';';
  		
 EXECUTE v_sql;
