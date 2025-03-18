@@ -10,16 +10,16 @@
 with bills_cte as (
 
 select bh.billnum , bi.billitem, bi.material, bi.qty,netval, bi.tax, bi.rpa_sat, bh.calday, s.plant, s.txt 
-from dcs.bills_item bi 
-	join dcs.bills_head bh on bh.billnum = bi.billnum
-	left join dcs.stores s on bh.plant = s.plant	 
+from discounts.bills_item bi 
+	join discounts.bills_head bh on bh.billnum = bi.billnum
+	left join discounts.stores s on bh.plant = s.plant	 
 where (bh.calday >= '2021.01.01'  and bh.calday <= '2021.02.28') 
 	and (bi.calday >= '2021.01.01' and bi.calday <= '2021.02.28')),  
 
 traffic_agg as (
  
 select t.plant, sum(t.quantity)::decimal as traffic
-from dcs.traffic t 
+from discounts.traffic t 
 where t."date" >= '2021.01.01' and t."date"<= '2021.02.28' 
 group by t.plant  
 ), 
@@ -32,8 +32,8 @@ case when p.promo_type = 1 then p.discount
 	 else null end as discount,
 rank() over(partition by c.coupon_num order by bc.billitem) as rank
 from bills_cte bc 
-	left join dcs.coupons c on c.billnum = bc.billnum AND c.material = bc.material
-	left join dcs.promos p on p.id = c.coupon_promo and p.material = c.material
+	left join discounts.coupons c on c.billnum = bc.billnum AND c.material = bc.material
+	left join discounts.promos p on p.id = c.coupon_promo and p.material = c.material
 where c.calday >= '2021.01.01' and c.calday <= '2021.02.28' 
 ),
 
@@ -86,7 +86,7 @@ M002      |Магазин №2 | 212412|          5169.68|             207242.32
  
 -- Создадим таблицу для логирования процесса загрузки и формирования витрины данных
  
-create table dcs.logs(
+create table discounts.logs(
 	log_id int NOT NULL,
 	log_timestamp timestamp NOT NULL DEFAULT NOW(),
 	log_type text NOT NULL,
@@ -100,7 +100,7 @@ DISTRIBUTED BY (log_id);
 
 -- Создадим последовательность для заполнения таблицы с логамии
 
-CREATE SEQUENCE dcs.log_id_seq
+CREATE SEQUENCE discounts.log_id_seq
 	INCREMENT BY 1
 	MINVALUE 1
 	MAXVALUE 999999999999999999
@@ -108,7 +108,7 @@ CREATE SEQUENCE dcs.log_id_seq
 
 -- Создадим функцию для логирования
 
-CREATE OR REPLACE FUNCTION dcs.f_write_log(p_log_type text, p_log_message text, p_location text)
+CREATE OR REPLACE FUNCTION discounts.f_write_log(p_log_type text, p_log_message text, p_location text)
 	RETURNS void
 	LANGUAGE plpgsql
 	VOLATILE
@@ -142,8 +142,8 @@ RAISE NOTICE '%: %: <>% Location[%]', clock_timestamp(), v_log_type, p_log_messa
 
 v_log_message := replace(p_log_message, '''', '''''');
 
-v_sql := 'INSERT INTO dcs.logs(log_id,log_type,log_msg, log_location, is_error, log_timestamp, log_user)
-			VALUES (' ||nextval('dcs.log_id_seq')|| ',
+v_sql := 'INSERT INTO discounts.logs(log_id,log_type,log_msg, log_location, is_error, log_timestamp, log_user)
+			VALUES (' ||nextval('discounts.log_id_seq')|| ',
 				  ''' || v_log_type || ''',
 					' || coalesce('''' || v_log_message || '''', 'empty')|| ',
 					' || coalesce('''' || v_location || '''', 'null')|| ',
@@ -170,7 +170,7 @@ EXECUTE ON ANY;
 Данные также будут копироваться в витрину - внешнюю таблицу Clickhouse
 */
 
-CREATE OR REPLACE FUNCTION dcs.f_sales_traffic_mart(p_start_date timestamp)
+CREATE OR REPLACE FUNCTION discounts.f_sales_traffic_mart(p_start_date timestamp)
 	RETURNS varchar
 	LANGUAGE plpgsql
 	VOLATILE
@@ -190,8 +190,8 @@ v_field text;
 
 BEGIN
 v_start_date = p_start_date;
-v_gp_table_name := 'dcs.gp_sales_traffic_mart_daily';
-v_ch_table_name := 'dcs.ch_sales_traffic_mart';
+v_gp_table_name := 'discounts.gp_sales_traffic_mart_daily';
+v_ch_table_name := 'discounts.ch_sales_traffic_mart';
 v_field = '''"Дата"'''; 
 
   
@@ -239,16 +239,16 @@ v_sql =  'INSERT INTO '||v_gp_table_name||
 	' (WITH bills_cte AS(
 				
 		SELECT bh.billnum , bi.billitem, bi.material, bi.qty,netval, bi.tax, bi.rpa_sat, bh.calday, s.plant, s.txt 
-		FROM dcs.bills_item bi 
-			JOIN dcs.bills_head bh ON bh.billnum = bi.billnum
-			LEFT JOIN dcs.stores s ON bh.plant = s.plant	 
+		FROM discounts.bills_item bi 
+			JOIN discounts.bills_head bh ON bh.billnum = bi.billnum
+			LEFT JOIN discounts.stores s ON bh.plant = s.plant	 
 		WHERE bh.calday = '''||v_start_date||'''
 		), 
 				
 		traffic_agg AS (
 				
 			SELECT t.plant, SUM(t.quantity)::decimal AS traffic
-			FROM dcs.traffic t 
+			FROM discounts.traffic t 
 			WHERE t."date" = '''||v_start_date||'''
 			GROUP BY t.plant 
 		),  
@@ -261,8 +261,8 @@ v_sql =  'INSERT INTO '||v_gp_table_name||
 				 ELSE NULL END AS discount,
 			rank() OVER(PARTITION BY c.coupon_num ORDER BY bc.billitem) AS rank
 			FROM bills_cte bc 
-				LEFT JOIN dcs.coupons c ON c.billnum = bc.billnum 
-				LEFT JOIN dcs.promos p ON p.id = c.coupon_promo AND p.material = c.material    
+				LEFT JOIN discounts.coupons c ON c.billnum = bc.billnum 
+				LEFT JOIN discounts.promos p ON p.id = c.coupon_promo AND p.material = c.material    
 		),
 				
 		coupons_agg AS (
@@ -319,7 +319,7 @@ v_sql = 'ANALYZE '|| v_ch_table_name ||';';
 		
 EXECUTE v_sql;
 
-PERFORM dcs.f_write_log(p_log_type := 'INFO',
+PERFORM discounts.f_write_log(p_log_type := 'INFO',
 				p_log_message := v_return || ' rows inserted',
 				p_location := 'Mart_Calculation');
 
@@ -349,7 +349,7 @@ c полями распределения идентичными полям, и�
 -----  Напишим функцию, создающую витрину данных с помощью временных таблиц вместо CTE
 
 
-CREATE OR REPLACE FUNCTION dcs.f_sales_traffic_mart(p_start_date timestamp)
+CREATE OR REPLACE FUNCTION discounts.f_sales_traffic_mart(p_start_date timestamp)
 	RETURNS varchar
 	LANGUAGE plpgsql
 	VOLATILE
@@ -375,8 +375,8 @@ v_field text;
 
 BEGIN
 v_start_date = p_start_date;
-v_gp_mart_name := 'dcs.gp_sales_traffic_mart_daily';
-v_ch_mart_name := 'dcs.ch_sales_traffic_mart_daily';
+v_gp_mart_name := 'discounts.gp_sales_traffic_mart_daily';
+v_ch_mart_name := 'discounts.ch_sales_traffic_mart_daily';
 v_traffic_agg_temp := 'traffic_agg_temp';
 v_coupons_temp := 'coupons_temp';
 v_coupons_agg_temp := 'coupons_agg_temp';
@@ -422,9 +422,9 @@ WITH (appendoptimized=true, orientation=column, compresslevel=1, compresstype=zs
 ON COMMIT DROP 
 AS (
 	SELECT bh.billnum , bi.billitem, bi.material, bi.qty,netval, bi.tax, bi.rpa_sat, bh.calday, s.plant, s.txt 
-	FROM dcs.bills_item bi 
-		LEFT JOIN dcs.bills_head bh ON bh.billnum = bi.billnum
-		LEFT JOIN dcs.stores s ON bh.plant = s.plant	 
+	FROM discounts.bills_item bi 
+		LEFT JOIN discounts.bills_head bh ON bh.billnum = bi.billnum
+		LEFT JOIN discounts.stores s ON bh.plant = s.plant	 
 	WHERE bh.calday = '''||v_start_date||'''
 	) 
 	DISTRIBUTED BY(billnum, material);';
@@ -448,8 +448,8 @@ v_sql = 'CREATE TEMP TABLE '||v_coupons_temp||'
 			ELSE NULL END AS discount,
 		rank() OVER(PARTITION BY c.coupon_num ORDER BY bt.billitem) AS rank
 		FROM '||v_bills_temp||' bt 
-		LEFT JOIN dcs.coupons c ON c.billnum = bt.billnum 
-		LEFT JOIN dcs.promos p ON p.id = c.coupon_promo AND p.material = c.material
+		LEFT JOIN discounts.coupons c ON c.billnum = bt.billnum 
+		LEFT JOIN discounts.promos p ON p.id = c.coupon_promo AND p.material = c.material
 	) 
 	DISTRIBUTED BY(plant);';
 	 	
@@ -500,7 +500,7 @@ v_sql = 'CREATE TEMP TABLE '||v_traffic_agg_temp||'
 	ON COMMIT DROP 
 	AS (
 		SELECT t.plant, SUM(t.quantity)::decimal AS traffic
-		FROM dcs.traffic t 
+		FROM discounts.traffic t 
 		WHERE t.date = '''||v_start_date||'''
 		GROUP BY t.plant 
 	) 
@@ -552,7 +552,7 @@ v_sql = 'ANALYZE '|| v_ch_table_name ||';';
 		
 EXECUTE v_sql;	 
 
- PERFORM dcs.f_write_log(p_log_type := 'INFO',
+ PERFORM discounts.f_write_log(p_log_type := 'INFO',
 			p_log_message := v_return || 'rows inserted for ',
 			p_location := 'Mart_Calculation');
     	  
