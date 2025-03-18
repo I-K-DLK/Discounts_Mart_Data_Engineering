@@ -3,9 +3,9 @@
 
 -- Создадим функцию DELTA PARTITION
 
--- DROP FUNCTION dcs.f_load_delta_partition(text, text, text, timestamp) 
+-- DROP FUNCTION discounts.f_load_delta_partition(text, text, text, timestamp) 
 
-CREATE OR REPLACE FUNCTION dcs.f_load_delta_partition(p_table text, p_ext_table text, p_partition_key text, p_date timestamp)
+CREATE OR REPLACE FUNCTION discounts.f_load_delta_partition(p_table text, p_ext_table text, p_partition_key text, p_date timestamp)
 														  
 	RETURNS int4
 	LANGUAGE plpgsql
@@ -71,7 +71,7 @@ EXECUTE v_sql;
 
 RAISE NOTICE 'INSERTED ROWS: %', v_where; 
 
-IF p_table = 'dcs.traffic' THEN
+IF p_table = 'discounts.traffic' THEN
 	
 	v_sql = 'INSERT INTO '|| v_temp_table ||' SELECT plant, to_date("date",''dd.mm.yyyy'') as date,  time, frame_id, quantity  FROM '|| v_ext_table ||' WHERE '||v_where_traffic||';';
 	RAISE NOTICE 'INSERTED ROWS: %', v_sql; 
@@ -107,7 +107,7 @@ v_sql = 'ANALYZE '|| p_table ||';';
 
 EXECUTE v_sql;
 
-PERFORM dcs.f_write_log(p_log_type := 'INFO',
+PERFORM discounts.f_write_log(p_log_type := 'INFO',
 						   p_log_message := 'end_of_partition_exchange',
 						   p_location := 'load_delta_partition');
 
@@ -127,7 +127,7 @@ EXECUTE ON ANY;
  
 
 SELECT gp_segment_id, count(1)
-FROM dcs.bills_head group by gp_segment_id; 
+FROM discounts.bills_head group by gp_segment_id; 
 /*
 gp_segment_id|count|
 -------------+-----+
@@ -140,7 +140,7 @@ gp_segment_id|count|
 */
 
 SELECT gp_segment_id, count(1)
-FROM dcs.bills_item group by gp_segment_id; 
+FROM discounts.bills_item group by gp_segment_id; 
 
 
 /*
@@ -156,7 +156,7 @@ gp_segment_id|count|
 
 
 SELECT gp_segment_id, count(1)
-FROM dcs.coupons group by gp_segment_id; 
+FROM discounts.coupons group by gp_segment_id; 
 
 
 /*
@@ -172,7 +172,7 @@ gp_segment_id|count|
 
  
 SELECT gp_segment_id, count(1)
-FROM dcs.traffic group by gp_segment_id; 
+FROM discounts.traffic group by gp_segment_id; 
 
 
 /*
@@ -194,7 +194,7 @@ gp_segment_id|count|
 -- Функция для загрузки справочников  
 
 
-CREATE OR REPLACE FUNCTION dcs.f_full_load(p_table text)
+CREATE OR REPLACE FUNCTION discounts.f_full_load(p_table text)
 	RETURNS int4
 	LANGUAGE plpgsql
 	VOLATILE
@@ -251,7 +251,7 @@ v_sql = 'ANALYZE '|| p_table ||';';
 
 EXECUTE v_sql;
 
-PERFORM dcs.f_write_log(p_log_type := 'INFO',
+PERFORM discounts.f_write_log(p_log_type := 'INFO',
 						   p_log_message := 'end_of_full load',
 						   p_location := 'full_load');
 						  
@@ -266,36 +266,36 @@ $$
 EXECUTE ON ANY;
 
 
-SELECT dcs.f_full_load('dcs.coupons'); -- 597 rows
+SELECT discounts.f_full_load('discounts.coupons'); -- 597 rows
 
-SELECT dcs.f_full_load('dcs.promos'); -- 8 rows
+SELECT discounts.f_full_load('discounts.promos'); -- 8 rows
 
-SELECT dcs.f_full_load('dcs.promo_types'); -- 2 rows
+SELECT discounts.f_full_load('discounts.promo_types'); -- 2 rows
 
-SELECT dcs.f_full_load('dcs.stores'); -- 15 rows
+SELECT discounts.f_full_load('discounts.stores'); -- 15 rows
 
 -- Перекос данных при изначальных полях дистрибуции
 
-SELECT (gp_toolkit.gp_skew_coefficient('dcs.bills_head'::regclass)).skccoeff
+SELECT (gp_toolkit.gp_skew_coefficient('discounts.bills_head'::regclass)).skccoeff
 /*
 skccoeff               |
 -----------------------+
 4.916301108609418898000|
 */
-SELECT (gp_toolkit.gp_skew_coefficient('dcs.bills_item'::regclass)).skccoeff
+SELECT (gp_toolkit.gp_skew_coefficient('discounts.bills_item'::regclass)).skccoeff
 /*
 skccoeff               |
 -----------------------+
 1.658693212216434083000|
 */
 
-SELECT (gp_toolkit.gp_skew_coefficient('dcs.traffic'::regclass)).skccoeff
+SELECT (gp_toolkit.gp_skew_coefficient('discounts.traffic'::regclass)).skccoeff
 /*
 skccoeff               |
 -----------------------+
 1.956874901338522631000|
 */
-SELECT (gp_toolkit.gp_skew_coefficient('dcs.coupons'::regclass)).skccoeff
+SELECT (gp_toolkit.gp_skew_coefficient('discounts.coupons'::regclass)).skccoeff
 
 /*
 skccoeff                |
