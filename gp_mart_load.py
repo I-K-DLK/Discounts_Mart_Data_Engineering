@@ -10,7 +10,7 @@ from datetime import datetime, timedelta, date
 
 DB_CONN = "gp_conn"
  
-DB_SCHEMA = 'dcs'
+DB_SCHEMA = 'discounts'
 
 # В рамках работы на тестовых данных получим список дат за которые 
 # будут строиться витрины данных и грузиться в обьединенную таблицу
