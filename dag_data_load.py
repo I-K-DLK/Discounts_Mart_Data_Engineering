@@ -9,7 +9,7 @@ from airflow.utils.task_group import TaskGroup
   
 DB_CONN = "gp_conn"
 
-DB_SCHEMA = 'dcs'
+DB_SCHEMA = 'discounts'
 
 
 # Загрузка данных через Delta partition  
@@ -24,9 +24,9 @@ DB_PROC_DELTA_LOAD = 'f_load_delta_partition'
 
 DB_PROC_FULL_LOAD = 'f_full_load'
  
-DELTA_TABLES = ['dcs.bills_head', 'dcs.bills_item', 'dcs.traffic', 'dcs.coupons']
+DELTA_TABLES = ['discounts.bills_head', 'discounts.bills_item', 'discounts.traffic', 'discounts.coupons']
  
-PARTITION_KEYS = {'dcs.bills_head':'calday', 'dcs.coupons':'calday', 'dcs.bills_item':'calday', 'dcs.traffic':'date'}
+PARTITION_KEYS = {'discounts.bills_head':'calday', 'discounts.coupons':'calday', 'discounts.bills_item':'calday', 'discounts.traffic':'date'}
 
 DELTA_PARTITION_QUERY = f"select {DB_SCHEMA}.{DB_PROC_DELTA_LOAD}(%(table)s,%(external_table)s,%(partition_key)s,%(start_date)s);"
 
@@ -35,7 +35,7 @@ DELTA_PARTITION_QUERY = f"select {DB_SCHEMA}.{DB_PROC_DELTA_LOAD}(%(table)s,%(ex
  
 DB_PROC_FULL_LOAD = 'f_full_load'
  
-FULL_LOAD_TABLES = ['dcs.promo_types','dcs.promos','dcs.stores']
+FULL_LOAD_TABLES = ['discounts.promo_types','discounts.promos','discounts.stores']
 
 FULL_LOAD_QUERY = f"select {DB_SCHEMA}.{DB_PROC_FULL_LOAD}(%(table_name)s);"
  
