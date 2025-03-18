@@ -21,6 +21,6 @@ where   1 = 1 and (
        "дата" <= date('{{ to_dttm }}') and
     {% endif %}
     true
-)
+) -- или "дата" >= '{{ from_dttm }}'  and "дата"  <= '{{ to_dttm }}'
 group by "Код завода", "Завод"
 order by "Код завода" asc
