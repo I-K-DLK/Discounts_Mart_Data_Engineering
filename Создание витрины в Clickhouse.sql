@@ -11,7 +11,7 @@ CREATE DATABASE IF NOT EXISTS discounts;
 CREATE TABLE IF NOT EXISTS discounts.gp_sales_traffic_mart
 (   
 	"Дата" Date,
-    "Код завода" String,
+    	"Код завода" String,
 	"Завод" String,
 	"Оборот" Decimal(17,6),
 	"Скидки по купонам" Decimal(17,6),
