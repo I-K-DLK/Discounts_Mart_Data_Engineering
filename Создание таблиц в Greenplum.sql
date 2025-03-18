@@ -1,15 +1,15 @@
   
--- Создадим рабочую схему discounts (dcs)
+-- Создадим рабочую схему discounts (discounts)
 
-CREATE schema dcs;
+CREATE schema discounts;
 
 -- Создадим таблицы из внешних источников
 
 --  bills_head, bills_item (таблицы с данными из чеков) из загрузим из БД PostgreSQL через pxf
  
-DROP EXTERNAL TABLE IF EXISTS dcs.bills_head_ext;
+DROP EXTERNAL TABLE IF EXISTS discounts.bills_head_ext;
 
-CREATE READABLE EXTERNAL TABLE dcs.bills_head_ext (
+CREATE READABLE EXTERNAL TABLE discounts.bills_head_ext (
 	billnum bigint,
 	plant text,
 	calday date)
@@ -18,9 +18,9 @@ LOCATION ('pxf://gp.bills_head?PROFILE=JDBC&JDBC_DRIVER=org.postgresql.Driver&DB
 ON ALL 
 FORMAT 'CUSTOM' (FORMATTER='pxfwritable_import');
   
-DROP EXTERNAL TABLE IF EXISTS dcs.bills_item_ext; 
+DROP EXTERNAL TABLE IF EXISTS discounts.bills_item_ext; 
 
-CREATE READABLE EXTERNAL TABLE dcs.bills_item_ext (
+CREATE READABLE EXTERNAL TABLE discounts.bills_item_ext (
 	billnum bigint,
 	billitem bigint,
 	material bigint,
@@ -37,9 +37,9 @@ FORMAT 'CUSTOM' (FORMATTER='pxfwritable_import');
 
 -- traffic (таблица посещаемости магазинов сети)
 
-DROP EXTERNAL TABLE IF EXISTS dcs.traffic_ext;
+DROP EXTERNAL TABLE IF EXISTS discounts.traffic_ext;
 
-CREATE READABLE EXTERNAL TABLE dcs.traffic_ext (
+CREATE READABLE EXTERNAL TABLE discounts.traffic_ext (
 	plant text,
 	date text,
 	time text,
@@ -51,7 +51,7 @@ LOCATION ('pxf://gp.traffic?PROFILE=JDBC&JDBC_DRIVER=org.postgresql.Driver&DB_UR
 ON ALL 
 FORMAT 'CUSTOM' (FORMATTER='pxfwritable_import');
 
-SELECT * FROM dcs.bills_head_ext LIMIT 10;
+SELECT * FROM discounts.bills_head_ext LIMIT 10;
 
 /*
 billnum  |billitem|material  |qty|netval |tax   |rpa_sat|calday    |
@@ -68,7 +68,7 @@ billnum  |billitem|material  |qty|netval |tax   |rpa_sat|calday    |
 901154502|       2|1000041426|  1|   1.82|  0.18|   2.00|2021-02-21|
 */
 
-SELECT * FROM dcs.bills_item_ext LIMIT 10;
+SELECT * FROM discounts.bills_item_ext LIMIT 10;
 /*
 billnum  |billitem|material  |qty|netval |tax   |rpa_sat|calday    |
 ---------+--------+----------+---+-------+------+-------+----------+
@@ -84,7 +84,7 @@ billnum  |billitem|material  |qty|netval |tax   |rpa_sat|calday    |
 901154502|       2|1000041426|  1|   1.82|  0.18|   2.00|2021-02-21|
 */
 
-SELECT * FROM dcs.traffic_ext LIMIT 10;
+SELECT * FROM discounts.traffic_ext LIMIT 10;
 
 /*
 plant|date      |time  |frame_id  |quantity|
@@ -104,25 +104,25 @@ M001 |01.01.2021|170000|1245776691|       1|
 -- Данные из других источников загрузим по протоколу gpfdist из локальных файлов CSV
 
 -- Скидочные купоны
-DROP EXTERNAL TABLE IF EXISTS dcs.coupons_ext;
+DROP EXTERNAL TABLE IF EXISTS discounts.coupons_ext;
  
-CREATE EXTERNAL TABLE dcs.coupons_ext(plant varchar, calday date, coupon_num varchar,  coupon_promo text, material bigint, billnum bigint
+CREATE EXTERNAL TABLE discounts.coupons_ext(plant varchar, calday date, coupon_num varchar,  coupon_promo text, material bigint, billnum bigint
 )
 LOCATION('gpfdist://172.16.128.98:8080/coupons.csv')
 FORMAT 'CSV'(HEADER DELIMITER ',' NULL '');
 
  -- Типы промо-акций
-DROP EXTERNAL TABLE IF EXISTS dcs.promo_types_ext;
+DROP EXTERNAL TABLE IF EXISTS discounts.promo_types_ext;
 
-CREATE EXTERNAL TABLE dcs.promo_types_ext(promo_type int, txt text
+CREATE EXTERNAL TABLE discounts.promo_types_ext(promo_type int, txt text
 )
 LOCATION('gpfdist://172.16.128.98:8080/promo_types.csv')
 FORMAT 'CSV'(HEADER DELIMITER ',' NULL '');
 
  -- Промо-акции 
-DROP EXTERNAL TABLE IF EXISTS dcs.promos_ext;
+DROP EXTERNAL TABLE IF EXISTS discounts.promos_ext;
 
-CREATE EXTERNAL TABLE dcs.promos_ext(id text, title text, promo_type int, material bigint, discount int
+CREATE EXTERNAL TABLE discounts.promos_ext(id text, title text, promo_type int, material bigint, discount int
 )
 LOCATION('gpfdist://172.16.128.98:8080/promos.csv')
 FORMAT 'CSV'(HEADER DELIMITER ',' NULL '');
@@ -135,7 +135,7 @@ CREATE EXTERNAL TABLE stores_ext(plant varchar, txt text
 LOCATION('gpfdist://172.16.128.98:8080/stores.csv')
 FORMAT 'CSV'(HEADER DELIMITER ',' NULL '');
 
-SELECT * FROM dcs.stores_ext;
+SELECT * FROM discounts.stores_ext;
 
 /*
 plant|txt        |
@@ -157,7 +157,7 @@ M014 |Магазин №14|
 M015 |Магазин №15|
 */
 
-SELECT * FROM dcs.promo_types_ext;
+SELECT * FROM discounts.promo_types_ext;
 /*
 promo_type|txt                             |
 ----------+--------------------------------+
@@ -190,18 +190,18 @@ M012 |2021-01-04|A000010   |3638616237621EEBA4EF73792BE10EAE|     32204|90065834
 -- Создадим справочники - реплицируем их на все сегменты. 
 
  
-DROP TABLE IF EXISTS dcs.promo_types;
+DROP TABLE IF EXISTS discounts.promo_types;
 
-CREATE TABLE dcs.promo_types (
+CREATE TABLE discounts.promo_types (
 	promo_type int,
 	txt text
 )
 WITH (appendoptimized=true, orientation=column, compresslevel=1, compresstype=zstd)
 DISTRIBUTED REPLICATED;
 
-DROP TABLE IF EXISTS dcs.promos;
+DROP TABLE IF EXISTS discounts.promos;
 
-CREATE TABLE dcs.promos (
+CREATE TABLE discounts.promos (
 	id text,
 	title text,
 	promo_type int,
@@ -212,9 +212,9 @@ WITH (appendoptimized=true, orientation=column, compresslevel=1, compresstype=zs
 DISTRIBUTED REPLICATED;
  
 
-DROP TABLE IF EXISTS dcs.stores;
+DROP TABLE IF EXISTS discounts.stores;
 
-CREATE TABLE dcs.stores (
+CREATE TABLE discounts.stores (
 	plant varchar,
 	txt text
 )
@@ -227,9 +227,9 @@ DISTRIBUTED REPLICATED;
 select count(*) from bills_head_ext -- 9967126 записей
 
  
--- DROP TABLE dcs.traffic;
+-- DROP TABLE discounts.traffic;
 
-CREATE TABLE dcs.traffic (plant text, date date, time text, frame_id text, quantity int
+CREATE TABLE discounts.traffic (plant text, date date, time text, frame_id text, quantity int
 )
 WITH (appendoptimized=true, orientation=column, compresslevel=1, compresstype=zstd)
 DISTRIBUTED RANDOMLY
@@ -238,9 +238,9 @@ PARTITION BY RANGE(date)
 PARTITION ym START ('2020-01-01') END ('2026-01-01') EVERY ( INTERVAL '1 month'),
 DEFAULT PARTITION other
 );
--- DROP TABLE dcs.bills_head;
+-- DROP TABLE discounts.bills_head;
 
-CREATE TABLE dcs.bills_head (LIKE bills_head_ext
+CREATE TABLE discounts.bills_head (LIKE bills_head_ext
 )
 WITH (appendoptimized=true, orientation=column, compresslevel=1, compresstype=zstd)
 DISTRIBUTED BY (billnum)
@@ -251,9 +251,9 @@ DEFAULT PARTITION other
 );
 
 
--- DROP TABLE dcs.bills_item;
+-- DROP TABLE discounts.bills_item;
 
-CREATE TABLE dcs.bills_item (LIKE bills_item_ext
+CREATE TABLE discounts.bills_item (LIKE bills_item_ext
 )
 WITH (appendoptimized=true, orientation=column, compresslevel=1, compresstype=zstd)
 DISTRIBUTED RANDOMLY
@@ -263,9 +263,9 @@ PARTITION ym START ('2020-01-01') END ('2026-01-01') EVERY ( INTERVAL '1 month')
 DEFAULT PARTITION other
 );
 
--- DROP TABLE dcs.coupons;
+-- DROP TABLE discounts.coupons;
 
-CREATE TABLE dcs.coupons (
+CREATE TABLE discounts.coupons (
 	plant varchar,
 	calday date,
 	coupon_num varchar,
