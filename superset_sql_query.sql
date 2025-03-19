@@ -1,8 +1,9 @@
  
 /*
-Superset Query для визуализации отчета в Apache Superset 
-Для обеспечения возможности фильтрации lданных по дате будем использовать
-Jinja templates 
+Сформируем виртуальный датасет с помошью SQL Query 
+для визуализации отчета в Apache Superset 
+Для обеспечения возможности фильтрации данных 
+по дате будем использовать Jinja templates 
 */
 
   
@@ -13,14 +14,13 @@ round(( sum("Количество чеков")*1.0/sum("Трафик")*100),2) a
 round(sum("Оборот")/sum("Трафик"),1) as "Средняя выручка на одного посетителя, руб" 
 
 from discounts.ch_sales_traffic_mart
-where   1 = 1 and (
-    {% if from_dttm is not none %}
-        "дата" >= date('{{ from_dttm }}') and
-    {% endif %}
-    {% if to_dttm is not none %}
-       "дата" <= date('{{ to_dttm }}') and
-    {% endif %}
-    true
+where  {% if from_dttm is not none %}
+          "дата" >= date('{{ from_dttm }}') and
+       {% endif %}
+       {% if to_dttm is not none %}
+          "дата" <= date('{{ to_dttm }}') and
+       {% endif %}
+       1 = 1
 ) -- или "дата" >= '{{ from_dttm }}'  and "дата"  <= '{{ to_dttm }}'
 group by "Код завода", "Завод"
 order by "Код завода" asc
