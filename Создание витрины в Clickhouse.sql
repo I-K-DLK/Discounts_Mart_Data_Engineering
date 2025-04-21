@@ -52,14 +52,7 @@ CREATE TABLE discounts.ch_sales_traffic_mart ON CLUSTER default_cluster
 ENGINE = ReplicatedMergeTree('/click/ch_sales_traffic_mart/{shard}','{replica}')
 ORDER BY ("Дата","Код завода");
 
--- Создалим обновляемое представление для загрузки данных из внешней таблицы в реплицированную
 
-CREATE MATERIALIZED VIEW discounts.sales_traffic_view ON CLUSTER default_cluster 
-REFRESH EVERY 1 MINUTE
-TO discounts.ch_sales_traffic_mart
-AS SELECT * FROM discounts.gp_sales_traffic_mart
-
- 
 
 
  
